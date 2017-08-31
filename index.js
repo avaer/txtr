@@ -12,11 +12,13 @@ class Rect {
     return this.w === other.w && this.h === other.h;
   }
 }
+Rect.fromJson = j => new Rect(j.x, j.y, j.w, j.h);
 class AtlasNode {
-  constructor(rect) {
-    this.left = this.right = null;
+  constructor(left, right, rect, filled) {
+    this.left = left;
+    this.right = right;
     this.rect = rect;
-    this.filled = false;
+    this.filled = filled;
   }
   pack(rect) {
     if (this.left !== null) {
@@ -32,25 +34,35 @@ class AtlasNode {
       return this;
     }
     if ((this.rect.w - rect.w) > (this.rect.h - rect.h)) {
-      this.left = new AtlasNode(new Rect(this.rect.x, this.rect.y, rect.w, this.rect.h));
-      this.right = new AtlasNode(new Rect(this.rect.x + rect.w, this.rect.y, this.rect.w - rect.w, this.rect.h));
+      this.left = new AtlasNode(null, null, new Rect(this.rect.x, this.rect.y, rect.w, this.rect.h), false);
+      this.right = new AtlasNode(null, null, new Rect(this.rect.x + rect.w, this.rect.y, this.rect.w - rect.w, this.rect.h), false);
     }
     else {
-      this.left = new AtlasNode(new Rect(this.rect.x, this.rect.y, this.rect.w, rect.h));
-      this.right = new AtlasNode(new Rect(this.rect.x, this.rect.y + rect.h, this.rect.w, this.rect.h - rect.h));
+      this.left = new AtlasNode(null, null, new Rect(this.rect.x, this.rect.y, this.rect.w, rect.h), false);
+      this.right = new AtlasNode(null, null, new Rect(this.rect.x, this.rect.y + rect.h, this.rect.w, this.rect.h - rect.h), false);
     }
     return this.left.pack(rect);
   }
 }
+AtlasNode.fromJson = j => new AtlasNode(
+  j.left ? AtlasNode.fromJson(j.left) : null,
+  j.right ? AtlasNode.fromJson(j.right) : null,
+  Rect.fromJson(j.rect),
+  j.filled
+);
 class Atlas {
-  constructor(width, height) {
-    this.root = new AtlasNode(new Rect(0, 0, width, height));
+  constructor() {
+    if (typeof arguments[0] === 'number') {
+      const [width, height] = arguments;
+      this.root = new AtlasNode(null, null, new Rect(0, 0, width, height), false);
+    } else {
+      const [atlasNode] = arguments;
+      this.root = atlasNode;
+    }
   }
-
   pack(width, height) {
     return this.root.pack(new Rect(0, 0, width, height)).rect;
   }
-
   uv(rect) {
     return [
       rect.x / this.root.rect.w,
@@ -59,6 +71,11 @@ class Atlas {
       (rect.y + rect.h) / this.root.rect.h
     ];
   }
+  toJson() {
+    return this.root;
+  }
 }
+Atlas.fromJson = j => new Atlas(AtlasNode.fromJson(j));
 const txtr = (width, height) => new Atlas(width, height);
+txtr.fromJson = Atlas.fromJson;
 module.exports = txtr;
